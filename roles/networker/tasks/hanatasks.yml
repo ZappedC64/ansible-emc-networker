@@ -1,0 +1,133 @@
+---
+- name: copy lgtonmsap to the client
+  copy:
+    src: "{{ lnxlgtonmsap.path }}{{ lnxlgtonmsap.file }}"
+    dest: "/tmp/{{ lnxlgtonmsap.file }}"
+
+- name: Install lnxlgtonmsap agent rpm
+  yum:
+    name: "/tmp/{{ lnxlgtonmsap.file }}"
+    state: present
+
+- name: Cleanup copied files from /tmp
+  file:
+    path: "/tmp/{{ item }}"
+    state: absent
+  with_items:
+    - "{{ lnxlgtonmsap.file }}"
+
+# This overwrites the existing file. If this method causes problems
+# the lineinfile method I use below could be easily implimeted
+#
+- name: Update /nsr/nsrsapsv.cfg using a jinja2 template
+  template:
+    src: nsrsapsv.cfg.j2
+    dest: /nsr/nsrsapsv.cfg
+    owner: root
+    group: root
+    mode: 0640
+
+## Not needed - I confirmed that the service starts on install ##
+### The service is also set to autostart.
+### NOTE: Networker is NOT a native systemd service!
+##
+##- name: Start Networker NVE service
+##  service:
+##    name: networker
+##    state: started
+
+
+# This is how nsrsapsv.cfg is created/updated in Salt.
+# I don't like it, because it appends to the existing
+# file. Appending to the existing file could get ugly.
+# Rewiting below this to use the line in file method.
+#
+#- name Setup /nsr/init_hana_nmsap.utl
+#  shell: printf 'HANA_BIN=/usr/sap/{{ varsid }}/HDB0{{ varinst }}/exe\n
+#HANA_SID={{ varsid }}\n
+#HANA_INSTANCE=0{{ varinst }}\n
+#HANA_MDC=TRUE\n
+#DATABASES=SYSTEMDB,{{ varsid }}\n
+#TENANT_ADMIN=FALSE\n
+#HANA_USR_PASSWD=""\n' >> /nsr/init_hana_nmsap.utl
+
+
+# Longer method of updating /nsr/init_hana_nmsap.utl but cleaner
+# if the playbook needs to be run again (no duplicate lines).
+#
+- name: Setup /nsr/init_hana_nmsap.utl - HANA_BIN
+  lineinfile:
+    path: /nsr/init_hana_nmsap.utl
+    regexp: '^HANA_BIN='
+    line: "HANA_BIN=/usr/sap/{{ varsid }}/HDB0{{ varinst }}/exe"
+    create: yes
+
+- name: Setup /nsr/init_hana_nmsap.utl - HANA_SID
+  lineinfile:
+    path: /nsr/init_hana_nmsap.utl
+    regexp: '^HANA_SID='
+    line: "HANA_SID={{ varsid }}"
+
+- name: Setup /nsr/init_hana_nmsap.utl - HANA_INSTANCE
+  lineinfile:
+    path: /nsr/init_hana_nmsap.utl
+    regexp: '^HANA_INSTANCE='
+    line: "HANA_INSTANCE=0{{ varinst }}"
+
+- name: Setup /nsr/init_hana_nmsap.utl - HANA_MDC
+  lineinfile:
+    path: /nsr/init_hana_nmsap.utl
+    regexp: '^HANA_MDC='
+    line: "HANA_MDC=TRUE"
+
+- name: Setup /nsr/init_hana_nmsap.utl - DATABASES
+  lineinfile:
+    path: /nsr/init_hana_nmsap.utl
+    regexp: '^DATABASES='
+    line: "DATABASES=SYSTEMDB,{{ varsid }}"
+
+- name: Setup /nsr/init_hana_nmsap.utl - TENANT_ADMIN
+  lineinfile:
+    path: /nsr/init_hana_nmsap.utl
+    regexp: '^TENANT_ADMIN='
+    line: "TENANT_ADMIN=FALSE"
+
+- name: Setup /nsr/init_hana_nmsap.utl - HANA_USR_PASSWD
+  lineinfile:
+    path: /nsr/init_hana_nmsap.utl
+    regexp: '^HANA_USR_PASSWD='
+    line: 'HANA_USR_PASSWD=""'
+
+# I didn't see this file on a running system, but I'm adding
+# this section for compatibility with the Salt state
+#
+- name: Check if the /nsr/nsrsapsv.cfg file exists
+  stat:
+    path: /nsr/nsrsapsv.cfg
+  register: nsrsapsv_file
+
+- name: Add encrypted password to /nsr/nsrsapsv.cfg
+  shell: |
+    echo -e "vsbackup\n{{ pwvsbackup }}\n{{ pwvsbackup }}" | /usr/sbin/nsrsapadm -P hana -z /nsr/nsrsapsv.cfg
+  when: nsrsapsv_file.stat.exists == True
+
+- name: Read in local accounts
+  shell: cat /etc/passwd
+  register: user_accts
+
+- name: Configure HANA backup - Run as the SIDadm user
+  debug: msg="Need to get the default hana password from Sekar."
+#  shell: |
+#    hdbsql -n {{ inventory_hostname }} -i {{ varinst }} -u SYSTEM -p {{ need.to.get.this.from.Sekar }} -d SYSTEMDB
+#    ALTER SYSTEM ALTER CONFIGURATION ('global.ini', 'SYSTEM') SET ('backup', 'log_backup_using_backint') = 'true';
+#    ALTER SYSTEM ALTER CONFIGURATION ('global.ini', 'SYSTEM') SET ('backup', 'catalog_backup_using_backint') = 'true';
+#    ALTER SYSTEM ALTER CONFIGURATION ('global.ini', 'SYSTEM') SET ('backup', 'backint_response_timeout') = '3600';
+#    ALTER SYSTEM ALTER CONFIGURATION ('global.ini', 'SYSTEM') SET ('backup', 'log_backup_parameter_file') = '/nsr/init_hana_nmsap.utl';
+#    ALTER SYSTEM ALTER CONFIGURATION ('global.ini', 'SYSTEM') SET ('backup', 'data_backup_parameter_file') = '/nsr/init_hana_nmsap.utl';
+#    ALTER SYSTEM ALTER CONFIGURATION ('global.ini', 'SYSTEM') SET ('backup', 'catalog_backup_parameter_file') = '/nsr/init_hana_nmsap.utl' with reconfigure;
+  become: True
+  become_method: su
+  become_user: "{{ sidadm }}"
+  when: user_accts.stdout.find(sidadm) != -1
+
+

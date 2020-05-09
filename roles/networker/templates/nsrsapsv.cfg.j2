@@ -1,0 +1,7 @@
+HANA_BIN=/usr/sap/{{ varsid|upper }}/HDB0{{ varinst }}/exe
+HANA_SID={{ varsid|upper }}
+HANA_INSTANCE=0{{ varinst }}
+HANA_MDC=TRUE
+DATABASES=SYSTEMDB,{{ varsid|upper }}
+TENANT_ADMIN=FALSE
+HANA_USR_PASSWD=""

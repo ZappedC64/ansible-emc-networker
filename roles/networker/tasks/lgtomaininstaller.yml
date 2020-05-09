@@ -1,0 +1,42 @@
+---
+- name: copy lgtoclnt to the client
+  copy:
+    src: "{{ lnxlgtoclnt.path }}{{ lnxlgtoclnt.file }}"
+    dest: "/tmp/{{ lnxlgtoclnt.file }}"
+
+- name: copy lgtoxtdclnt to the client
+  copy:
+    src: "{{ lnxlgtoxtdclnt.path }}{{ lnxlgtoxtdclnt.file }}"
+    dest: "/tmp/{{ lnxlgtoxtdclnt.file }}"
+
+#------
+
+- name: Install lgtoclnt agent rpm
+  yum:
+    name: "/tmp/{{ lnxlgtoclnt.file }}"
+    state: present
+
+- name: Install lnxlgtoxtdclnt agent rpm
+  yum:
+    name: "/tmp/{{ lnxlgtoxtdclnt.file }}"
+    state: present
+
+#------
+
+- name: Cleanup copied files from /tmp
+  file:
+    path: "/tmp/{{ item }}"
+    state: absent
+  with_items:
+    - "{{ lnxlgtoclnt.file }}"
+    - "{{ lnxlgtoxtdclnt.file }}"
+
+## Not needed - I confirmed that the service starts on install ##
+## The service is also set to autostart.
+## NOTE: Networker is NOT a native systemd service!
+#
+#- name: Start Networker NVE service
+#  service:
+#    name: networker
+#    state: started
+

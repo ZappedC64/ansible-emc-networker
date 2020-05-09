@@ -1,0 +1,22 @@
+---
+- name: copy lgtonmsap to the client
+  copy:
+    src: "{{ lnxlgtonmsap.path }}{{ lnxlgtonmsap.file }}"
+    dest: "/tmp/{{ lgtonmsap.file }}"
+
+- name: Cleanup copied files from /tmp
+  file:
+    path: "/tmp/{{ item }}"
+    state: absent
+  with_items:
+    - "{{ lnxlgtonmsap.file }}"
+
+## Not needed - I confirmed that the service starts on install ##
+## The service is also set to autostart.
+## NOTE: Networker is NOT a native systemd service!
+#
+#- name: Start Networker NVE service
+#  service:
+#    name: networker
+#    state: started
+

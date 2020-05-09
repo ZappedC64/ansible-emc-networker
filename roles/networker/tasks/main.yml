@@ -1,0 +1,42 @@
+---
+- name: include RID variables
+  include_vars: "vars/{{ rid }}.yml"
+  
+- include: etchosts.yml
+  become: yes
+  when: ansible_os_family == 'RedHat' or ansible_os_family == 'SLES'
+
+- include: lgtomaininstaller.yml
+  become: yes
+  when: ansible_os_family == 'RedHat' or ansible_os_family == 'SLES'
+
+- name: Check if this is a HANA server (Linux)
+  stat:
+    path: /hana
+  register: hana_installed
+  when: ansible_os_family == 'RedHat' or ansible_os_family == 'SLES'
+
+- name: Check if this is SAP Application server (Linux)
+  stat:
+    path: /usr/sap
+  register: sapapp_installed
+  when: ansible_os_family == 'RedHat' or ansible_os_family == 'SLES'
+
+- debug:
+    msg: "This is a {{ ansible_os_family }} HANA server."
+  when:
+    - ansible_os_family == 'RedHat' or ansible_os_family == 'SLES'
+    - hana_installed.stat.exists
+
+- include: hanatasks.yml
+  become: yes
+  when:
+    - ansible_os_family == 'RedHat' or ansible_os_family == 'SLES'
+    - hana_installed.stat.exists
+
+- debug:
+    msg: "This is a {{ ansible_os_family }} SAP Application server."
+  when:
+    - ansible_os_family == 'RedHat' or ansible_os_family == 'SLES'
+    - sapapp_installed.stat.exists
+

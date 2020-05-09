@@ -1,0 +1,37 @@
+---
+#- name: Add backup servers to the /etc/hosts file
+#  debug:
+#    msg:
+#       - "{{ iznve }}"
+#      - "{{ iznve['ip'] }} {{ iznve['name'] }}"
+#      - "{{ izdd['ip'] }} {{ izdd['name'] }}"
+#      - "OS family: {{ ansible_os_family }}"
+
+- name: Update NVE server in /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    regexp: "^{{ item.ip }}"
+    line: "{{ item.ip }} {{ item.name }}"
+  with_items:
+    - "{{ iznve }}"
+
+#- name: Update NVE server in /etc/hosts
+#  lineinfile:
+#    path: /etc/hosts
+#    regexp: "^{{ iznve['ip'] }}"
+#    line: "{{ iznve['ip'] }} {{iznve['name'] }}"
+
+- name: Update DD server in /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    regexp: "^{{ item.ip }}"
+    line: "{{ item.ip }} {{ item.name }}"
+  with_items:
+    - "{{ izdd }}"
+
+#- name: Update DD server in /etc/hosts
+#  lineinfile:
+#    path: /etc/hosts
+#    regexp: "^{{ izdd['ip'] }}"
+#    line: "{{ izdd['ip'] }} {{izdd['name'] }}"
+
